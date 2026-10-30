@@ -13,9 +13,12 @@ import com.example.data.model.CartItem
 import com.example.data.model.DailySummary
 import com.example.data.model.OrderStatus
 import com.example.data.model.PaymentMethod
+import com.example.data.remote.FirestoreRepository
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -25,7 +28,8 @@ import java.util.Locale
 class OrderRepository(
   private val menuItemDao: MenuItemDao,
   private val orderDao: OrderDao,
-  private val dailySettlementDao: DailySettlementDao
+  private val dailySettlementDao: DailySettlementDao,
+  private val firestoreRepository: FirestoreRepository? = null
 ) {
 
   val allMenuItems: Flow<List<MenuItemEntity>> = menuItemDao.getAllMenuItems()
@@ -161,6 +165,40 @@ class OrderRepository(
       )
     }
     orderDao.insertOrderItems(orderItems)
+
+    // Sync to Firestore if repository is available
+    firestoreRepository?.let {
+      withContext(Dispatchers.IO) {
+        launch {
+          val orderMap = mapOf(
+            "orderId" to orderId,
+            "orderNumber" to orderNumber,
+            "tableName" to tableName.ifBlank { "Table 1" },
+            "waiterName" to waiterName.ifBlank { "Waitress" },
+            "status" to status,
+            "totalAmount" to totalAmount,
+            "paymentMethod" to if (isPaid) paymentMethod?.name else null,
+            "amountPaid" to if (isPaid) amountPaid else 0.0,
+            "changeAmount" to if (isPaid) changeAmount else 0.0,
+            "mpesaCode" to if (isPaid) mpesaCode else null,
+            "createdAt" to Timestamp(now / 1000, (now % 1000).toInt() * 1000000),
+            "paidAt" to if (isPaid) Timestamp(now / 1000, (now % 1000).toInt() * 1000000) else null,
+            "notes" to notes.ifBlank { null},
+            "items" to items.map { item ->
+              mapOf(
+                "itemName" to item.name,
+                "unitPrice" to item.unitPrice,
+                "quantity" to item.quantity,
+                "subtotal" to item.subtotal,
+                "notes" to item.notes
+              )
+            }
+          )
+          it.syncOrder(orderMap)
+        }
+      }
+    }
+
     orderId
   }
 

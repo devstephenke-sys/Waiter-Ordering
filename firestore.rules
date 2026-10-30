@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Orders: Only authenticated users can read/write
+    match /orders/{orderId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Menu Items: Public read, authenticated write
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Daily Settlements: Only authenticated users
+    match /dailySettlements/{settlementId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

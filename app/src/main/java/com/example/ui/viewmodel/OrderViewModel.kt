@@ -13,6 +13,7 @@ import com.example.data.model.CartItem
 import com.example.data.model.DailySummary
 import com.example.data.model.OrderStatus
 import com.example.data.model.PaymentMethod
+import com.example.data.remote.FirestoreRepository
 import com.example.data.repository.OrderRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -84,10 +85,12 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
 
   init {
     val db = AppDatabase.getDatabase(application, viewModelScope)
+    val firestoreRepository = FirestoreRepository()
     repository = OrderRepository(
       menuItemDao = db.menuItemDao(),
       orderDao = db.orderDao(),
-      dailySettlementDao = db.dailySettlementDao()
+      dailySettlementDao = db.dailySettlementDao(),
+      firestoreRepository = firestoreRepository
     )
     viewModelScope.launch {
       repository.ensureMenuPopulated()

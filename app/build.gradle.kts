@@ -109,8 +109,8 @@ dependencies {
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
   implementation(libs.firebase.analytics)
-  // Uncomment to use Firestore:
-  // implementation(libs.firebase.firestore)
+  // Firestore for cloud data sync
+  implementation(libs.firebase.firestore)
 
   // Firebase Auth and Google Sign-In via Credential Manager:
   implementation(libs.firebase.auth)
