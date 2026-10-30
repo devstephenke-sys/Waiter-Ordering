@@ -61,32 +61,18 @@
 
 ### 6. Set Firestore Security Rules
 
-In Firestore Console → Rules tab, replace with:
+The project includes a `firestore.rules` file with security rules. Deploy them:
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Orders: Only authenticated users can read/write
-    match /orders/{orderId} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Menu Items: Public read, authenticated write
-    match /menuItems/{itemId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-
-    // Daily Settlements: Only authenticated users
-    match /dailySettlements/{settlementId} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
-
+- [ ] Open `firestore.rules` file in project root
+- [ ] Copy the content
+- [ ] Go to Firebase Console → Firestore → Rules tab
+- [ ] Paste the rules
 - [ ] Click "Publish"
+
+**Rules Summary:**
+- Orders: Authenticated users only
+- Menu Items: Public read, authenticated write
+- Daily Settlements: Authenticated users only
 
 ### 7. Get OAuth Client ID
 
@@ -138,7 +124,14 @@ In `app/src/main/java/com/example/data/auth/AuthRepository.kt`:
 
 ## Testing
 
-### 13. Run on Emulator
+### 13. Deploy Firestore Security Rules
+
+- [ ] Go to Firebase Console → Firestore → Rules tab
+- [ ] Copy content from `firestore.rules` file in project root
+- [ ] Paste into Rules editor
+- [ ] Click "Publish"
+
+### 14. Run on Emulator
 
 - [ ] Create Android emulator (API 24+)
 - [ ] Add Google account to emulator
@@ -148,14 +141,16 @@ In `app/src/main/java/com/example/data/auth/AuthRepository.kt`:
 - [ ] Select Google account
 - [ ] Should authenticate and show main app
 
-### 14. Verify Firestore Sync
+### 15. Verify Firestore Sync
 
 - [ ] Create an order in app
-- [ ] Go to Firebase Console → Firestore
+- [ ] Go to Firebase Console → Firestore → Data tab
 - [ ] Check `orders` collection
-- [ ] Verify order appears
+- [ ] Verify order appears with all data
+- [ ] Check menu items sync (if modified)
+- [ ] Check daily settlements (after closing day)
 
-### 15. Test Sign Out
+### 16. Test Sign Out
 
 - [ ] Open Settings dialog
 - [ ] Click "Sign Out"
