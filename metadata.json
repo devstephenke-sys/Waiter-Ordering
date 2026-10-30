@@ -1,0 +1,6 @@
+{
+  "name": "Waiter Orders",
+  "description": "Streamlined waiter order management application for tracking tables, recording items, processing Cash and M-Pesa payments, order history, and daily closing sales totals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
