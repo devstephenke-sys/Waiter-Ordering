@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.auth.AuthRepository
@@ -19,13 +20,27 @@ data class AuthUiState(
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
-  private val authRepository = AuthRepository(application.applicationContext)
+  private val authRepository: AuthRepository by lazy {
+    try {
+      AuthRepository(application.applicationContext)
+    } catch (e: Exception) {
+      Log.e("AuthViewModel", "Failed to initialize AuthRepository", e)
+      throw e
+    }
+  }
 
   private val _uiState = MutableStateFlow(AuthUiState())
   val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
   init {
-    checkAuthStatus()
+    try {
+      checkAuthStatus()
+    } catch (e: Exception) {
+      Log.e("AuthViewModel", "Failed to check auth status", e)
+      _uiState.value = _uiState.value.copy(
+        errorMessage = "Authentication error: ${e.message}"
+      )
+    }
   }
 
   private fun checkAuthStatus() {

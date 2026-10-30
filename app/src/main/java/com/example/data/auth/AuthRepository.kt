@@ -1,6 +1,7 @@
 package com.example.data.auth
 
 import android.content.Context
+import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
@@ -15,8 +16,23 @@ import kotlinx.coroutines.tasks.await
 
 class AuthRepository(private val context: Context) {
 
-  private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
-  private val credentialManager = CredentialManager.create(context)
+  private val firebaseAuth: FirebaseAuth by lazy {
+    try {
+      FirebaseAuth.getInstance()
+    } catch (e: Exception) {
+      Log.e("AuthRepository", "Failed to initialize FirebaseAuth", e)
+      throw e
+    }
+  }
+
+  private val credentialManager by lazy {
+    try {
+      CredentialManager.create(context)
+    } catch (e: Exception) {
+      Log.e("AuthRepository", "Failed to initialize CredentialManager", e)
+      throw e
+    }
+  }
 
   val currentUser: FirebaseUser?
     get() = firebaseAuth.currentUser
