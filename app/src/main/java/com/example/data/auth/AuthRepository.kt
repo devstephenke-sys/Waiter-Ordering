@@ -26,6 +26,9 @@ class AuthRepository(private val context: Context) {
 
   suspend fun signInWithGoogle(): Result<FirebaseUser> {
     return try {
+      // IMPORTANT: You must enable Google Sign-In in Firebase Console first!
+      // Go to Firebase Console → Authentication → Sign-in method → Enable Google
+      // Then get the Web Client ID from Project Settings → General → Your apps
       val googleIdOption = GetGoogleIdOption.Builder()
         .setServerClientId("YOUR_WEB_CLIENT_ID") // Replace with your actual Web Client ID from Firebase Console
         .setAutoSelectEnabled(true)

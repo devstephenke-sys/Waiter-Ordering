@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "423136623767",
+    "project_id": "waiter-ordering",
+    "storage_bucket": "waiter-ordering.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:423136623767:android:21c3536842ff641732fdd2",
+        "android_client_info": {
+          "package_name": "com.aistudio.waiterorder.vrtx"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWMtoOwzIzXlNvaMaNrRVUnZs22Y_CFA8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
