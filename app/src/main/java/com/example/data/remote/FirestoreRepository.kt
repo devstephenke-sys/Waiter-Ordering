@@ -12,7 +12,7 @@ class FirestoreRepository {
   private val db = FirebaseFirestore.getInstance()
 
   // Orders
-  suspend fun syncOrder(orderData: Map<String, Any>): Result<String> {
+  suspend fun syncOrder(orderData: Map<String, Any?>): Result<String> {
     return try {
       val documentRef = db.collection("orders").add(orderData).await()
       Result.success(documentRef.id)
@@ -21,7 +21,7 @@ class FirestoreRepository {
     }
   }
 
-  suspend fun updateOrder(orderId: String, updates: Map<String, Any>): Result<Unit> {
+  suspend fun updateOrder(orderId: String, updates: Map<String, Any?>): Result<Unit> {
     return try {
       db.collection("orders").document(orderId).update(updates).await()
       Result.success(Unit)
@@ -37,7 +37,7 @@ class FirestoreRepository {
           close(error)
           return@addSnapshotListener
         }
-        val orders = snapshot?.documents?.map { it.data } ?: emptyList()
+        val orders = snapshot?.documents?.mapNotNull { it.data } ?: emptyList()
         trySend(orders)
       }
 
@@ -45,7 +45,7 @@ class FirestoreRepository {
   }
 
   // Menu Items
-  suspend fun syncMenuItem(itemData: Map<String, Any>): Result<String> {
+  suspend fun syncMenuItem(itemData: Map<String, Any?>): Result<String> {
     return try {
       val documentRef = db.collection("menuItems").add(itemData).await()
       Result.success(documentRef.id)
@@ -54,7 +54,7 @@ class FirestoreRepository {
     }
   }
 
-  suspend fun updateMenuItem(itemId: String, updates: Map<String, Any>): Result<Unit> {
+  suspend fun updateMenuItem(itemId: String, updates: Map<String, Any?>): Result<Unit> {
     return try {
       db.collection("menuItems").document(itemId).update(updates).await()
       Result.success(Unit)
@@ -79,7 +79,7 @@ class FirestoreRepository {
           close(error)
           return@addSnapshotListener
         }
-        val items = snapshot?.documents?.map { it.data } ?: emptyList()
+        val items = snapshot?.documents?.mapNotNull { it.data } ?: emptyList()
         trySend(items)
       }
 
@@ -87,7 +87,7 @@ class FirestoreRepository {
   }
 
   // Daily Settlements
-  suspend fun syncDailySettlement(settlementData: Map<String, Any>): Result<String> {
+  suspend fun syncDailySettlement(settlementData: Map<String, Any?>): Result<String> {
     return try {
       val documentRef = db.collection("dailySettlements").add(settlementData).await()
       Result.success(documentRef.id)
@@ -103,7 +103,7 @@ class FirestoreRepository {
           close(error)
           return@addSnapshotListener
         }
-        val settlements = snapshot?.documents?.map { it.data } ?: emptyList()
+        val settlements = snapshot?.documents?.mapNotNull { it.data } ?: emptyList()
         trySend(settlements)
       }
 
