@@ -61,6 +61,13 @@ interface OrderDao {
   fun getOrdersWithItemsBetween(startTime: Long, endTime: Long): Flow<List<OrderWithItems>>
 
   @Transaction
+  @Query("SELECT * FROM orders WHERE createdAt >= :startTime AND createdAt <= :endTime AND isClosedInSettlement = 0 ORDER BY createdAt DESC")
+  fun getUnclosedOrdersBetween(startTime: Long, endTime: Long): Flow<List<OrderWithItems>>
+
+  @Query("UPDATE orders SET isClosedInSettlement = 1 WHERE createdAt >= :startTime AND createdAt <= :endTime")
+  suspend fun markOrdersBetweenAsClosed(startTime: Long, endTime: Long)
+
+  @Transaction
   @Query("SELECT * FROM orders WHERE id = :orderId")
   fun getOrderWithItemsById(orderId: Long): Flow<OrderWithItems?>
 

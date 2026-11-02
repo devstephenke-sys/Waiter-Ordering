@@ -38,7 +38,7 @@ class OrderRepository(
 
   fun getTodayOrders(): Flow<List<OrderWithItems>> {
     val (start, end) = getTodayRange()
-    return orderDao.getOrdersWithItemsBetween(start, end)
+    return orderDao.getUnclosedOrdersBetween(start, end)
   }
 
   fun getTodayTopSelling(): Flow<List<ItemSalesCount>> {
@@ -269,9 +269,9 @@ class OrderRepository(
     dailySettlementDao.insertSettlement(settlement)
   }
 
-  suspend fun clearTodayOrders() = withContext(Dispatchers.IO) {
+  suspend fun archiveTodayOrders() = withContext(Dispatchers.IO) {
     val (start, end) = getTodayRange()
-    orderDao.deleteOrdersBetween(start, end)
+    orderDao.markOrdersBetweenAsClosed(start, end)
   }
 
   suspend fun addMenuItem(name: String, category: String, price: Double, emoji: String, imageUri: String? = null) =

@@ -441,12 +441,13 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
         summary = summary,
         notes = state.closeDayNotes.ifBlank { null }
       )
+      repository.archiveTodayOrders()
 
       _uiState.value = _uiState.value.copy(
         showCloseDayConfirm = false,
         settlementSuccessBanner = "Evening sales closeout saved! Total: ${state.currencySymbol} ${String.format(Locale.US, "%,.2f", summary.totalSales)}"
       )
-      _snackbarEvent.emit("Day completed and settled successfully! Sales recorded in history.")
+      _snackbarEvent.emit("Day completed and settled successfully! Active orders cleared and saved to history.")
     }
   }
 
