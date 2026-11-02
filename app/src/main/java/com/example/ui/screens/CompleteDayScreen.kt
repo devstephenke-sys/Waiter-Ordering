@@ -504,9 +504,11 @@ fun CompleteDayScreen(
 
     // Evening Shift Completion Actions
     item {
+      val hasOrders = summary.totalOrdersCount > 0
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Button(
           onClick = onOpenCloseDayConfirm,
+          enabled = hasOrders,
           modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
@@ -520,6 +522,13 @@ fun CompleteDayScreen(
             text = "Complete Day & Archive Shift",
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp
+          )
+        }
+        if (!hasOrders) {
+          Text(
+            text = "ℹ️ Complete Day button is enabled only when there are orders to close out.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
 

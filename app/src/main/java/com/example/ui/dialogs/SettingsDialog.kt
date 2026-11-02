@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
@@ -51,7 +49,6 @@ fun SettingsDialog(
   currentCurrency: String,
   onSave: (waiterName: String, currency: String) -> Unit,
   onOpenManageMenu: () -> Unit,
-  onSignOut: () -> Unit = {},
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -147,25 +144,6 @@ fun SettingsDialog(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Sign Out Button
-        OutlinedButton(
-          onClick = {
-            onDismiss()
-            onSignOut()
-          },
-          modifier = Modifier
-            .fillMaxWidth()
-            .height(46.dp)
-            .testTag("settings_sign_out_btn"),
-          shape = RoundedCornerShape(12.dp)
-        ) {
-          Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Sign Out", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
         // Database status card
         Card(
           modifier = Modifier.fillMaxWidth(),
@@ -192,14 +170,14 @@ fun SettingsDialog(
               }
               Spacer(modifier = Modifier.width(8.dp))
               Text(
-                text = "Database & Persistence Status",
+                text = "Database & Storage Status",
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.bodyMedium
               )
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-              text = "• Engine: Room SQLite Local Store (Instant & Offline-first)\n• Security: Zero data loss, automatic crash-safe transactions\n• Backend Connection: Configured for daily sales settlement",
+              text = "• Engine: Room SQLite Database (100% Offline-First)\n• Mode: Standalone Local Mode (No Sign-In Required)\n• Security: Instant ACID transactions & local data persistence",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant
             )

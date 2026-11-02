@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
+import com.example.data.local.UserPreferences
 import com.example.data.local.dao.ItemSalesCount
 import com.example.data.local.dao.OrderWithItems
 import com.example.data.local.entities.DailySettlementEntity
@@ -53,9 +54,11 @@ data class OrderUiState(
   val ordersFilter: OrdersFilter = OrdersFilter.ALL,
   val historyDateFilter: HistoryDateFilter = HistoryDateFilter.ALL,
   val waiterName: String = "Sarah Wanjiku",
+  val hotelName: String = "Mama Africa Hotel",
   val currencySymbol: String = "KSh",
+  val isFirstTimeSetupComplete: Boolean = false,
   // New Order Form state
-  val currentTable: String = "Table 1",
+  val currentTable: String = "Walk-in",
   val cart: List<CartItem> = emptyList(),
   val newOrderNotes: String = "",
   val selectedMenuCategory: String = "All",
@@ -76,16 +79,24 @@ data class OrderUiState(
   // Menu Management State
   val showManageMenuDialog: Boolean = false,
   val itemToEdit: MenuItemEntity? = null,
-  val showEditItemDialog: Boolean = false
+  val showEditItemDialog: Boolean = false,
+  // Order Confirmation Dialog State
+  val showOrderConfirmDialog: Boolean = false,
+  val pendingImmediatePay: Boolean = false
 )
 
 class OrderViewModel(application: Application) : AndroidViewModel(application) {
 
+  private val userPreferences = UserPreferences(application.applicationContext)
   private val repository: OrderRepository
 
   init {
     val db = AppDatabase.getDatabase(application, viewModelScope)
-    val firestoreRepository = FirestoreRepository()
+    val firestoreRepository = try {
+      FirestoreRepository()
+    } catch (_: Exception) {
+      null
+    }
     repository = OrderRepository(
       menuItemDao = db.menuItemDao(),
       orderDao = db.orderDao(),
@@ -97,7 +108,14 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
     }
   }
 
-  private val _uiState = MutableStateFlow(OrderUiState())
+  private val _uiState = MutableStateFlow(
+    OrderUiState(
+      waiterName = userPreferences.waiterName.ifBlank { "Sarah Wanjiku" },
+      hotelName = userPreferences.hotelName.ifBlank { "Mama Africa Hotel" },
+      currencySymbol = userPreferences.currencySymbol.ifBlank { "KSh" },
+      isFirstTimeSetupComplete = userPreferences.isSetupComplete
+    )
+  )
   val uiState: StateFlow<OrderUiState> = _uiState.asStateFlow()
 
   val menuItems: StateFlow<List<MenuItemEntity>> = repository.allMenuItems
@@ -134,6 +152,17 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
   private val _snackbarEvent = MutableSharedFlow<String>()
   val snackbarEvent: SharedFlow<String> = _snackbarEvent.asSharedFlow()
 
+  // Onboarding Setup
+  fun completeFirstTimeSetup(waiter: String, hotel: String, currency: String) {
+    userPreferences.saveProfile(waiter, hotel, currency)
+    _uiState.value = _uiState.value.copy(
+      waiterName = waiter,
+      hotelName = hotel,
+      currencySymbol = currency,
+      isFirstTimeSetupComplete = true
+    )
+  }
+
   // Navigation
   fun setTab(tab: ScreenTab) {
     _uiState.value = _uiState.value.copy(currentTab = tab)
@@ -148,10 +177,17 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
   }
 
   fun setWaiterName(name: String) {
+    userPreferences.waiterName = name
     _uiState.value = _uiState.value.copy(waiterName = name)
   }
 
+  fun setHotelName(hotel: String) {
+    userPreferences.hotelName = hotel
+    _uiState.value = _uiState.value.copy(hotelName = hotel)
+  }
+
   fun setCurrencySymbol(symbol: String) {
+    userPreferences.currencySymbol = symbol
     _uiState.value = _uiState.value.copy(currencySymbol = symbol)
   }
 
@@ -229,6 +265,55 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
     _uiState.value = _uiState.value.copy(cart = emptyList(), newOrderNotes = "")
   }
 
+  // Order Confirmation & Placement
+  fun promptSubmitOrder(immediatePay: Boolean) {
+    if (_uiState.value.cart.isEmpty()) {
+      viewModelScope.launch {
+        _snackbarEvent.emit("Please add at least one item to the order")
+      }
+      return
+    }
+    _uiState.value = _uiState.value.copy(
+      showOrderConfirmDialog = true,
+      pendingImmediatePay = immediatePay
+    )
+  }
+
+  fun dismissOrderConfirmDialog() {
+    _uiState.value = _uiState.value.copy(showOrderConfirmDialog = false)
+  }
+
+  fun confirmAndSubmitOrder() {
+    val immediatePay = _uiState.value.pendingImmediatePay
+    _uiState.value = _uiState.value.copy(showOrderConfirmDialog = false)
+    submitOrder(immediatePay)
+  }
+
+  // Edit Order flow (loads order into cart and deletes old one so it can be re-saved/edited)
+  fun editOrder(orderWithItems: OrderWithItems) {
+    val items = orderWithItems.items.map { oi ->
+      CartItem(
+        menuItemId = null,
+        name = oi.itemName,
+        unitPrice = oi.unitPrice,
+        quantity = oi.quantity,
+        notes = oi.notes
+      )
+    }
+    viewModelScope.launch {
+      repository.deleteOrder(orderWithItems.order)
+    }
+    _uiState.value = _uiState.value.copy(
+      cart = items,
+      newOrderNotes = orderWithItems.order.notes ?: "",
+      detailOrder = null
+    )
+    setTab(ScreenTab.NEW_ORDER)
+    viewModelScope.launch {
+      _snackbarEvent.emit("Order loaded into cart for editing.")
+    }
+  }
+
   // Create Order
   fun submitOrder(immediatePay: Boolean = false) {
     val state = _uiState.value
@@ -240,7 +325,7 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     viewModelScope.launch {
-      val orderId = repository.createOrder(
+      repository.createOrder(
         tableName = state.currentTable,
         waiterName = state.waiterName,
         items = state.cart,
@@ -252,7 +337,8 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
         mpesaCode = if (immediatePay && state.selectedPaymentMethod == PaymentMethod.MPESA) state.mpesaCodeInput.ifBlank { null } else null
       )
 
-      clearCart()
+      clearCart() // Automatically clears selection/cart to prevent double-clicking
+      _uiState.value = _uiState.value.copy(showOrderConfirmDialog = false)
       _snackbarEvent.emit(
         if (immediatePay) "Order created and marked as PAID!" else "Order recorded: Waiting for Payment"
       )
@@ -355,11 +441,12 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
         summary = summary,
         notes = state.closeDayNotes.ifBlank { null }
       )
+
       _uiState.value = _uiState.value.copy(
         showCloseDayConfirm = false,
         settlementSuccessBanner = "Evening sales closeout saved! Total: ${state.currencySymbol} ${String.format(Locale.US, "%,.2f", summary.totalSales)}"
       )
-      _snackbarEvent.emit("Day completed and settled successfully!")
+      _snackbarEvent.emit("Day completed and settled successfully! Sales recorded in history.")
     }
   }
 
@@ -393,11 +480,11 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
     _uiState.value = _uiState.value.copy(itemToEdit = null, showEditItemDialog = false)
   }
 
-  fun saveMenuItem(id: Long?, name: String, category: String, price: Double, emoji: String) {
+  fun saveMenuItem(id: Long?, name: String, category: String, price: Double, emoji: String, imageUri: String? = null) {
     if (name.isBlank() || price <= 0) return
     viewModelScope.launch {
       if (id == null || id == 0L) {
-        repository.addMenuItem(name.trim(), category.trim(), price, emoji.ifBlank { "🍽️" })
+        repository.addMenuItem(name.trim(), category.trim(), price, emoji.ifBlank { "🍽️" }, imageUri)
         _snackbarEvent.emit("Added \"$name\" to menu")
       } else {
         repository.updateMenuItem(
@@ -406,7 +493,9 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
             name = name.trim(),
             category = category.trim(),
             price = price,
-            emoji = emoji.ifBlank { "🍽️" }
+            isAvailable = true,
+            emoji = emoji.ifBlank { "🍽️" },
+            imageUri = imageUri
           )
         )
         _snackbarEvent.emit("Updated \"$name\"")

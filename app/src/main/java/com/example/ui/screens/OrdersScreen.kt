@@ -61,6 +61,7 @@ fun OrdersScreen(
   orders: List<OrderWithItems>,
   currentFilter: OrdersFilter,
   waiterName: String,
+  hotelName: String,
   currencySymbol: String,
   onFilterChange: (OrdersFilter) -> Unit,
   onPayClick: (OrderWithItems) -> Unit,
@@ -110,7 +111,7 @@ fun OrdersScreen(
             color = MaterialTheme.colorScheme.primary
           )
           Text(
-            text = "Floor Orders & Table Bills",
+            text = if (hotelName.isNotBlank()) "$hotelName • Floor Orders & Table Bills" else "Floor Orders & Table Bills",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )

@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -232,7 +235,18 @@ fun ManageMenuDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                   ) {
-                    Text(text = item.emoji, fontSize = 24.sp)
+                    if (!item.imageUri.isNullOrBlank()) {
+                      AsyncImage(
+                        model = item.imageUri,
+                        contentDescription = item.name,
+                        modifier = Modifier
+                          .size(40.dp)
+                          .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                      )
+                    } else {
+                      Text(text = item.emoji, fontSize = 24.sp)
+                    }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                       Text(

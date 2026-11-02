@@ -33,7 +33,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,12 +47,11 @@ import com.example.ui.dialogs.OrderDetailDialog
 import com.example.ui.dialogs.SettingsDialog
 import com.example.ui.screens.CompleteDayScreen
 import com.example.ui.screens.HistoryScreen
-import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.NewOrderScreen
+import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.OrdersScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.Terracotta
-import com.example.ui.viewmodel.AuthViewModel
 import com.example.ui.viewmodel.OrderViewModel
 import com.example.ui.viewmodel.ScreenTab
 import kotlinx.coroutines.flow.collectLatest
@@ -61,16 +59,24 @@ import kotlinx.coroutines.flow.collectLatest
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    // Initialize Firebase
     try {
       com.google.firebase.FirebaseApp.initializeApp(this)
-    } catch (e: Exception) {
-      android.util.Log.e("MainActivity", "Failed to initialize Firebase", e)
-    }
+    } catch (_: Exception) {}
     enableEdgeToEdge()
     setContent {
       MyApplicationTheme {
-        WaiterApp()
+        val orderViewModel: OrderViewModel = viewModel()
+        val uiState by orderViewModel.uiState.collectAsStateWithLifecycle()
+
+        if (!uiState.isFirstTimeSetupComplete) {
+          OnboardingScreen(
+            onComplete = { waiter, hotel, currency ->
+              orderViewModel.completeFirstTimeSetup(waiter, hotel, currency)
+            }
+          )
+        } else {
+          WaiterApp(orderViewModel = orderViewModel)
+        }
       }
     }
   }
@@ -79,10 +85,8 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaiterApp(
-  authViewModel: AuthViewModel = viewModel(),
   orderViewModel: OrderViewModel = viewModel()
 ) {
-  val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
   val uiState by orderViewModel.uiState.collectAsStateWithLifecycle()
   val allOrders by orderViewModel.allOrders.collectAsStateWithLifecycle()
   val menuItems by orderViewModel.menuItems.collectAsStateWithLifecycle()
@@ -97,16 +101,6 @@ fun WaiterApp(
     orderViewModel.snackbarEvent.collectLatest { message ->
       snackbarHostState.showSnackbar(message)
     }
-  }
-
-  // Show login screen if not authenticated
-  if (!authUiState.isAuthenticated) {
-    LoginScreen(
-      isLoading = authUiState.isLoading,
-      errorMessage = authUiState.errorMessage,
-      onSignInClick = { authViewModel.signInWithGoogle() }
-    )
-    return
   }
 
   // Back handling: pop to Orders if on another tab
@@ -215,6 +209,7 @@ fun WaiterApp(
             orders = allOrders,
             currentFilter = uiState.ordersFilter,
             waiterName = uiState.waiterName,
+            hotelName = uiState.hotelName,
             currencySymbol = uiState.currencySymbol,
             onFilterChange = { orderViewModel.setOrdersFilter(it) },
             onPayClick = { orderViewModel.openPaymentSheet(it) },
@@ -228,12 +223,14 @@ fun WaiterApp(
           NewOrderScreen(
             menuItems = menuItems,
             cart = uiState.cart,
-            currentTable = uiState.currentTable,
             orderNotes = uiState.newOrderNotes,
             selectedCategory = uiState.selectedMenuCategory,
             searchQuery = uiState.menuSearchQuery,
             currencySymbol = uiState.currencySymbol,
-            onTableChange = { orderViewModel.setTable(it) },
+            showOrderConfirmDialog = uiState.showOrderConfirmDialog,
+            onPromptSubmit = { orderViewModel.promptSubmitOrder(it) },
+            onConfirmSubmit = { orderViewModel.confirmAndSubmitOrder() },
+            onDismissConfirm = { orderViewModel.dismissOrderConfirmDialog() },
             onCategoryChange = { orderViewModel.setMenuCategory(it) },
             onSearchChange = { orderViewModel.setMenuSearchQuery(it) },
             onNotesChange = { orderViewModel.setNewOrderNotes(it) },
@@ -295,7 +292,7 @@ fun WaiterApp(
     )
   }
 
-  // Order Detail Dialog (supports direct payment options selection & amount paid recording)
+  // Order Detail Dialog
   if (uiState.detailOrder != null) {
     OrderDetailDialog(
       orderWithItems = uiState.detailOrder!!,
@@ -313,6 +310,7 @@ fun WaiterApp(
         val order = uiState.detailOrder!!
         orderViewModel.cancelOrder(order.order.id)
       },
+      onEditOrder = { orderViewModel.editOrder(it) },
       onDismiss = { orderViewModel.closeOrderDetail() }
     )
   }
@@ -354,9 +352,6 @@ fun WaiterApp(
       onOpenManageMenu = {
         orderViewModel.setShowManageMenuDialog(true)
       },
-      onSignOut = {
-        authViewModel.signOut()
-      },
       onDismiss = { orderViewModel.setShowSettingsDialog(false) }
     )
   }
@@ -378,8 +373,8 @@ fun WaiterApp(
     EditMenuItemDialog(
       itemToEdit = uiState.itemToEdit,
       currencySymbol = uiState.currencySymbol,
-      onSave = { id, name, category, price, emoji ->
-        orderViewModel.saveMenuItem(id, name, category, price, emoji)
+      onSave = { id, name, category, price, emoji, imageUri ->
+        orderViewModel.saveMenuItem(id, name, category, price, emoji, imageUri)
       },
       onDismiss = { orderViewModel.closeEditMenuItemDialog() }
     )

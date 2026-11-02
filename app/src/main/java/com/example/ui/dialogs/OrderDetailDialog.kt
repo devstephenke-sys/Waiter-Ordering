@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -78,6 +79,7 @@ fun OrderDetailDialog(
   currencySymbol: String,
   onConfirmDirectPayment: (paymentMethod: PaymentMethod, amountPaid: Double, changeAmount: Double, mpesaCode: String?) -> Unit,
   onCancelOrder: () -> Unit,
+  onEditOrder: (OrderWithItems) -> Unit,
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -157,6 +159,22 @@ fun OrderDetailDialog(
               color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             StatusBadge(order = order)
+          }
+        }
+
+        // Edit Order Button
+        item {
+          OutlinedButton(
+            onClick = { onEditOrder(orderWithItems) },
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(44.dp)
+              .testTag("edit_order_btn"),
+            shape = RoundedCornerShape(12.dp)
+          ) {
+            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Edit Order Items / Notes", fontWeight = FontWeight.Bold)
           }
         }
 

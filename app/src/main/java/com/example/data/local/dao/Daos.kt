@@ -93,6 +93,9 @@ interface OrderDao {
   @Query("DELETE FROM order_items WHERE orderId = :orderId")
   suspend fun deleteOrderItems(orderId: Long)
 
+  @Query("DELETE FROM orders WHERE createdAt >= :startTime AND createdAt <= :endTime")
+  suspend fun deleteOrdersBetween(startTime: Long, endTime: Long)
+
   @Delete
   suspend fun deleteOrder(order: OrderEntity)
 

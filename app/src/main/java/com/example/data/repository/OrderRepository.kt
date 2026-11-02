@@ -170,31 +170,35 @@ class OrderRepository(
     firestoreRepository?.let {
       withContext(Dispatchers.IO) {
         launch {
-          val orderMap = mapOf(
-            "orderId" to orderId,
-            "orderNumber" to orderNumber,
-            "tableName" to tableName.ifBlank { "Table 1" },
-            "waiterName" to waiterName.ifBlank { "Waitress" },
-            "status" to status,
-            "totalAmount" to totalAmount,
-            "paymentMethod" to if (isPaid) paymentMethod?.name else null,
-            "amountPaid" to if (isPaid) amountPaid else 0.0,
-            "changeAmount" to if (isPaid) changeAmount else 0.0,
-            "mpesaCode" to if (isPaid) mpesaCode else null,
-            "createdAt" to Timestamp(now / 1000, (now % 1000).toInt() * 1000000),
-            "paidAt" to if (isPaid) Timestamp(now / 1000, (now % 1000).toInt() * 1000000) else null,
-            "notes" to notes.ifBlank { null},
-            "items" to items.map { item ->
-              mapOf(
-                "itemName" to item.name,
-                "unitPrice" to item.unitPrice,
-                "quantity" to item.quantity,
-                "subtotal" to item.subtotal,
-                "notes" to item.notes
-              )
-            }
-          )
-          it.syncOrder(orderMap)
+          try {
+            val orderMap = mapOf(
+              "orderId" to orderId,
+              "orderNumber" to orderNumber,
+              "tableName" to tableName.ifBlank { "Table 1" },
+              "waiterName" to waiterName.ifBlank { "Waitress" },
+              "status" to status,
+              "totalAmount" to totalAmount,
+              "paymentMethod" to if (isPaid) paymentMethod?.name else null,
+              "amountPaid" to if (isPaid) amountPaid else 0.0,
+              "changeAmount" to if (isPaid) changeAmount else 0.0,
+              "mpesaCode" to if (isPaid) mpesaCode else null,
+              "createdAt" to Timestamp(now / 1000, (now % 1000).toInt() * 1000000),
+              "paidAt" to if (isPaid) Timestamp(now / 1000, (now % 1000).toInt() * 1000000) else null,
+              "notes" to notes.ifBlank { null },
+              "items" to items.map { item ->
+                mapOf(
+                  "itemName" to item.name,
+                  "unitPrice" to item.unitPrice,
+                  "quantity" to item.quantity,
+                  "subtotal" to item.subtotal,
+                  "notes" to item.notes
+                )
+              }
+            )
+            it.syncOrder(orderMap)
+          } catch (_: Exception) {
+            // Offline mode: ignore remote sync failures
+          }
         }
       }
     }
@@ -265,14 +269,20 @@ class OrderRepository(
     dailySettlementDao.insertSettlement(settlement)
   }
 
-  suspend fun addMenuItem(name: String, category: String, price: Double, emoji: String) =
+  suspend fun clearTodayOrders() = withContext(Dispatchers.IO) {
+    val (start, end) = getTodayRange()
+    orderDao.deleteOrdersBetween(start, end)
+  }
+
+  suspend fun addMenuItem(name: String, category: String, price: Double, emoji: String, imageUri: String? = null) =
     withContext(Dispatchers.IO) {
       menuItemDao.insertMenuItem(
         MenuItemEntity(
           name = name,
           category = category,
           price = price,
-          emoji = emoji
+          emoji = emoji,
+          imageUri = imageUri
         )
       )
     }

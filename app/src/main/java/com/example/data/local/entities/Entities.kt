@@ -14,7 +14,8 @@ data class MenuItemEntity(
   val category: String,
   val price: Double,
   val isAvailable: Boolean = true,
-  val emoji: String = "🍽️"
+  val emoji: String = "🍽️",
+  val imageUri: String? = null
 )
 
 @Entity(

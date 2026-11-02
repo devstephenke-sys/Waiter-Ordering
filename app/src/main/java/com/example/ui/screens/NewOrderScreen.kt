@@ -13,11 +13,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -36,12 +35,11 @@ import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -60,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,12 +74,14 @@ import java.util.Locale
 fun NewOrderScreen(
   menuItems: List<MenuItemEntity>,
   cart: List<CartItem>,
-  currentTable: String,
   orderNotes: String,
   selectedCategory: String,
   searchQuery: String,
   currencySymbol: String,
-  onTableChange: (String) -> Unit,
+  showOrderConfirmDialog: Boolean,
+  onPromptSubmit: (Boolean) -> Unit,
+  onConfirmSubmit: () -> Unit,
+  onDismissConfirm: () -> Unit,
   onCategoryChange: (String) -> Unit,
   onSearchChange: (String) -> Unit,
   onNotesChange: (String) -> Unit,
@@ -95,7 +96,6 @@ fun NewOrderScreen(
 ) {
   var isCartExpanded by remember { mutableStateOf(false) }
 
-  val defaultTables = listOf("Table 1", "Table 2", "Table 3", "Table 4", "Table 5", "Table 6", "Bar Counter", "VIP Room", "Takeaway")
   val categories = listOf("All", "Meals", "Sides", "Drinks", "Hot Drinks")
 
   val cartTotal = cart.sumOf { it.subtotal }
@@ -107,6 +107,33 @@ fun NewOrderScreen(
       item.name.contains(searchQuery, ignoreCase = true) ||
       item.category.contains(searchQuery, ignoreCase = true)
     matchesCategory && matchesSearch
+  }.distinctBy { it.name.trim().lowercase() }
+
+  // Order Confirmation Dialog
+  if (showOrderConfirmDialog) {
+    AlertDialog(
+      onDismissRequest = onDismissConfirm,
+      title = { Text("Confirm Order Placement", fontWeight = FontWeight.Bold) },
+      text = { Text("Do you want to place this order now, or continue taking order / editing?") },
+      confirmButton = {
+        Button(
+          onClick = onConfirmSubmit,
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+          shape = RoundedCornerShape(10.dp)
+        ) {
+          Text("Place Order Now", fontWeight = FontWeight.Bold)
+        }
+      },
+      dismissButton = {
+        OutlinedButton(
+          onClick = onDismissConfirm,
+          shape = RoundedCornerShape(10.dp)
+        ) {
+          Text("Continue Editing")
+        }
+      },
+      shape = RoundedCornerShape(16.dp)
+    )
   }
 
   Column(
@@ -129,7 +156,7 @@ fun NewOrderScreen(
           color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-          text = "Select table and tap items to add",
+          text = "Tap items to add or use +/- to adjust quantity",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -155,34 +182,6 @@ fun NewOrderScreen(
           Spacer(modifier = Modifier.width(4.dp))
           Text("+ Custom", fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-      }
-    }
-
-    Spacer(modifier = Modifier.height(10.dp))
-
-    // Table Selector Chips
-    Text(
-      text = "SELECT TABLE / LOCATION",
-      style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp, fontWeight = FontWeight.Bold),
-      color = MaterialTheme.colorScheme.primary
-    )
-    Spacer(modifier = Modifier.height(6.dp))
-    LazyRow(
-      horizontalArrangement = Arrangement.spacedBy(8.dp),
-      modifier = Modifier.fillMaxWidth()
-    ) {
-      items(defaultTables) { table ->
-        val isSelected = currentTable == table
-        FilterChip(
-          selected = isSelected,
-          onClick = { onTableChange(table) },
-          label = { Text(table, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-          colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primary,
-            selectedLabelColor = Color.White
-          ),
-          shape = RoundedCornerShape(12.dp)
-        )
       }
     }
 
@@ -229,7 +228,7 @@ fun NewOrderScreen(
 
     Spacer(modifier = Modifier.height(10.dp))
 
-    // Menu Items Grid
+    // Menu Items Grid (2-column grid layout)
     LazyVerticalGrid(
       columns = GridCells.Fixed(2),
       horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -240,13 +239,27 @@ fun NewOrderScreen(
       contentPadding = PaddingValues(bottom = if (cart.isNotEmpty()) 160.dp else 20.dp)
     ) {
       items(filteredMenuItems, key = { it.id }) { item ->
-        val cartQuantity = cart.firstOrNull { it.name == item.name }?.quantity ?: 0
+        val cartItem = cart.firstOrNull { it.name == item.name }
+        val cartQuantity = cartItem?.quantity ?: 0
+        val cartIndex = cart.indexOfFirst { it.name == item.name }
 
         MenuItemCard(
           item = item,
           currencySymbol = currencySymbol,
           cartQuantity = cartQuantity,
-          onAdd = { onAddToCart(item) }
+          onAdd = { onAddToCart(item) },
+          onDecrease = {
+            if (cartIndex >= 0) {
+              onUpdateCartQuantity(cartIndex, cartQuantity - 1)
+            }
+          },
+          onIncrease = {
+            if (cartIndex >= 0) {
+              onUpdateCartQuantity(cartIndex, cartQuantity + 1)
+            } else {
+              onAddToCart(item)
+            }
+          }
         )
       }
     }
@@ -291,7 +304,7 @@ fun NewOrderScreen(
               Spacer(modifier = Modifier.width(10.dp))
               Column {
                 Text(
-                  text = "$currentTable • $cartItemsCount items",
+                  text = "$cartItemsCount items in cart",
                   fontWeight = FontWeight.Bold,
                   style = MaterialTheme.typography.titleSmall
                 )
@@ -394,7 +407,7 @@ fun NewOrderScreen(
               OutlinedTextField(
                 value = orderNotes,
                 onValueChange = onNotesChange,
-                label = { Text("Kitchen / Table Notes (Optional)") },
+                label = { Text("Kitchen Notes (Optional)") },
                 placeholder = { Text("e.g. Extra chilli, serve drinks first") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -412,7 +425,7 @@ fun NewOrderScreen(
           ) {
             // Save as Waiting for Payment
             Button(
-              onClick = { onSubmitOrder(false) },
+              onClick = { onPromptSubmit(false) },
               modifier = Modifier
                 .weight(1f)
                 .height(48.dp)
@@ -431,7 +444,7 @@ fun NewOrderScreen(
 
             // Instant Pay & Complete
             Button(
-              onClick = { onSubmitOrder(true) },
+              onClick = { onPromptSubmit(true) },
               modifier = Modifier
                 .weight(1f)
                 .height(48.dp)
@@ -462,6 +475,8 @@ fun MenuItemCard(
   currencySymbol: String,
   cartQuantity: Int,
   onAdd: () -> Unit,
+  onDecrease: () -> Unit,
+  onIncrease: () -> Unit,
   modifier: Modifier = Modifier
 ) {
   val isInCart = cartQuantity > 0
@@ -470,7 +485,7 @@ fun MenuItemCard(
     modifier = modifier
       .fillMaxWidth()
       .clip(RoundedCornerShape(14.dp))
-      .clickable { onAdd() }
+      .clickable { if (!isInCart) onAdd() else onIncrease() }
       .border(
         width = if (isInCart) 2.dp else 1.dp,
         color = if (isInCart) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
@@ -492,10 +507,21 @@ fun MenuItemCard(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
       ) {
-        Text(
-          text = item.emoji,
-          fontSize = 24.sp
-        )
+        if (!item.imageUri.isNullOrBlank()) {
+          AsyncImage(
+            model = item.imageUri,
+            contentDescription = item.name,
+            modifier = Modifier
+              .size(38.dp)
+              .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop
+          )
+        } else {
+          Text(
+            text = item.emoji,
+            fontSize = 24.sp
+          )
+        }
 
         if (isInCart) {
           Box(
@@ -540,19 +566,58 @@ fun MenuItemCard(
           )
         )
 
-        Box(
-          modifier = Modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-          contentAlignment = Alignment.Center
-        ) {
-          Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = "Add",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp)
-          )
+        if (!isInCart) {
+          Box(
+            modifier = Modifier
+              .size(28.dp)
+              .clip(CircleShape)
+              .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+              .clickable { onAdd() },
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              imageVector = Icons.Default.Add,
+              contentDescription = "Add",
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(16.dp)
+            )
+          }
+        } else {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            Box(
+              modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                .clickable { onDecrease() },
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.Remove,
+                contentDescription = "Decrease",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp)
+              )
+            }
+            Box(
+              modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                .clickable { onIncrease() },
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Increase",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp)
+              )
+            }
+          }
         }
       }
     }
