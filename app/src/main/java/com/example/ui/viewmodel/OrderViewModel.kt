@@ -154,7 +154,8 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
 
   // Onboarding Setup
   fun completeFirstTimeSetup(waiter: String, hotel: String, currency: String) {
-    userPreferences.saveProfile(waiter, hotel, currency)
+    val role = if (waiter.equals("Manager", ignoreCase = true)) "MANAGER" else "WAITER"
+    userPreferences.saveProfile(waiter, hotel, currency, role)
     _uiState.value = _uiState.value.copy(
       waiterName = waiter,
       hotelName = hotel,

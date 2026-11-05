@@ -48,7 +48,7 @@ class OrderRepository(
 
   fun getTodaySummary(): Flow<DailySummary> {
     val (start, end) = getTodayRange()
-    val todayOrdersFlow = orderDao.getOrdersWithItemsBetween(start, end)
+    val todayOrdersFlow = orderDao.getUnclosedOrdersBetween(start, end)
     val topSellingFlow = orderDao.getTopSellingItemsBetween(start, end)
 
     return combine(todayOrdersFlow, topSellingFlow) { orders, topSelling ->

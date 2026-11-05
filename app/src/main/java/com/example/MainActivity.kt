@@ -6,11 +6,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Assessment
@@ -205,8 +209,10 @@ fun WaiterApp(
     ) {
       when (uiState.currentTab) {
         ScreenTab.ORDERS -> {
+          val isManager = uiState.waiterName.equals("Manager", ignoreCase = true)
+          val displayedOrders = if (isManager) allOrders else allOrders.filter { it.order.waiterName.equals(uiState.waiterName, ignoreCase = true) }
           OrdersScreen(
-            orders = allOrders,
+            orders = displayedOrders,
             currentFilter = uiState.ordersFilter,
             waiterName = uiState.waiterName,
             hotelName = uiState.hotelName,
@@ -245,25 +251,52 @@ fun WaiterApp(
         }
 
         ScreenTab.COMPLETE_DAY -> {
-          CompleteDayScreen(
-            summary = todaySummary,
-            topSellingItems = topSellingToday,
-            pastSettlements = pastSettlements,
-            waiterName = uiState.waiterName,
-            currencySymbol = uiState.currencySymbol,
-            settlementSuccessBanner = uiState.settlementSuccessBanner,
-            onDismissSuccessBanner = { orderViewModel.dismissSettlementBanner() },
-            onOpenCloseDayConfirm = { orderViewModel.openCloseDayConfirm() },
-            onGoToPendingOrders = {
-              orderViewModel.setOrdersFilter(com.example.ui.viewmodel.OrdersFilter.WAITING_FOR_PAYMENT)
-              orderViewModel.setTab(ScreenTab.ORDERS)
+          val isManager = uiState.waiterName.equals("Manager", ignoreCase = true)
+          if (!isManager) {
+            Box(
+              modifier = Modifier.fillMaxSize().padding(24.dp),
+              contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+              Column(
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+              ) {
+                Text(
+                  text = "🔒 Manager Restricted Area",
+                  style = androidx.compose.material3.MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                  color = androidx.compose.material3.MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                  text = "Only the Manager can close the day and view daily settlements.\nYou are currently logged in as ${uiState.waiterName}.",
+                  style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                  textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                  color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              }
             }
-          )
+          } else {
+            CompleteDayScreen(
+              summary = todaySummary,
+              topSellingItems = topSellingToday,
+              pastSettlements = pastSettlements,
+              waiterName = uiState.waiterName,
+              currencySymbol = uiState.currencySymbol,
+              settlementSuccessBanner = uiState.settlementSuccessBanner,
+              onDismissSuccessBanner = { orderViewModel.dismissSettlementBanner() },
+              onOpenCloseDayConfirm = { orderViewModel.openCloseDayConfirm() },
+              onGoToPendingOrders = {
+                orderViewModel.setOrdersFilter(com.example.ui.viewmodel.OrdersFilter.WAITING_FOR_PAYMENT)
+                orderViewModel.setTab(ScreenTab.ORDERS)
+              }
+            )
+          }
         }
 
         ScreenTab.HISTORY -> {
+          val isManager = uiState.waiterName.equals("Manager", ignoreCase = true)
+          val displayedHistory = if (isManager) allOrders else allOrders.filter { it.order.waiterName.equals(uiState.waiterName, ignoreCase = true) }
           HistoryScreen(
-            allOrders = allOrders,
+            allOrders = displayedHistory,
             currentDateFilter = uiState.historyDateFilter,
             currencySymbol = uiState.currencySymbol,
             onDateFilterChange = { orderViewModel.setHistoryDateFilter(it) },

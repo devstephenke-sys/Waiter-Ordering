@@ -526,7 +526,7 @@ fun CompleteDayScreen(
         }
         if (!hasOrders) {
           Text(
-            text = "ℹ️ Complete Day button is enabled only when there are orders to close out.",
+            text = "ℹ️ Day is already closed. Button will re-enable if new orders are placed.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
